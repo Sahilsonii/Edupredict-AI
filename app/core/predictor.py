@@ -240,15 +240,19 @@ def arima_forecast_students(series: pd.Series) -> Dict[str, Any]:
 
         # Make forecast
         forecast = best_model.forecast(steps=1)
-        next_period_pred = forecast[0]
+        next_period_pred = forecast.iloc[0] if hasattr(forecast, "iloc") else forecast[0]
 
         # Round prediction based on historical patterns
         rounded_prediction = round_to_historical_pattern(next_period_pred, s)
 
         # Get confidence intervals
         conf_int = best_model.get_forecast(steps=1).conf_int()
-        lower_bound = round_to_historical_pattern(conf_int.iloc[0, 0], s)
-        upper_bound = round_to_historical_pattern(conf_int.iloc[0, 1], s)
+        # Use iloc to safely access first row, 0th and 1st column
+        lower_val = conf_int.iloc[0, 0] if hasattr(conf_int, "iloc") else conf_int[0][0]
+        upper_val = conf_int.iloc[0, 1] if hasattr(conf_int, "iloc") else conf_int[0][1]
+        
+        lower_bound = round_to_historical_pattern(lower_val, s)
+        upper_bound = round_to_historical_pattern(upper_val, s)
 
         return {
             "status": "ok",
@@ -589,3 +593,23 @@ def fit_arima_model(series: pd.Series) -> Dict[str, Any]:
     
     except Exception as e:
         return {"status": "error", "error": str(e)}
+
+def get_segmented_series(
+    df: pd.DataFrame, 
+    dimension_col: str, 
+    segment_value: str, 
+    time_col: str, 
+    target_col: str
+) -> pd.Series:
+    """
+    Get aggregated time series for a specific segment.
+    Example: Filter Academic_Level='Master's' -> Sum 'Students' by Year.
+    """
+    # Filter
+    filtered_df = df[df[dimension_col].astype(str) == str(segment_value)].copy()
+    
+    if filtered_df.empty:
+        return pd.Series([], dtype=float)
+        
+    # Aggregate
+    return aggregate_by_period_for_target(filtered_df, time_col, target_col)

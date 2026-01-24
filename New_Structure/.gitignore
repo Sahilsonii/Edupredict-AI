@@ -1,5 +1,0 @@
-# Avoid uploading data
-data/
-__pycache__/
-.env
-.venv

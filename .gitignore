@@ -1,11 +1,6 @@
-# Python-generated files
+# Avoid uploading data
+data/
 __pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
-
-# Virtual environments
+.env
 .venv
 venv/

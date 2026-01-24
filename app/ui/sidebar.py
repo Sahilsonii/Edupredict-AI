@@ -14,6 +14,35 @@ def render_sidebar(df):
     if transpose_data:
         index_column = st.sidebar.selectbox("Select column to use as new header (if transposing):", df.columns, index=0)
         df = df.set_index(index_column).transpose()
+        
+        # Ensure unique columns to prevent analyzer errors (e.g., duplicates from the index)
+        if not df.columns.is_unique:
+             st.sidebar.warning("⚠️ Duplicate headers found after transpose. Auto-renaming...")
+             new_cols = []
+             seen = {}
+             for c in df.columns:
+                 c_str = str(c)
+                 if c_str in seen:
+                     seen[c_str] += 1
+                     new_cols.append(f"{c_str}_{seen[c_str]}")
+                 else:
+                     seen[c_str] = 0
+                     new_cols.append(c_str)
+             df.columns = new_cols
+        
+        # Reset index so that the index (e.g., Year) becomes a column again
+        df = df.reset_index()
+        
+        # Smart Rename: If the new column is generic 'index' but contains years, rename it!
+        if 'index' in df.columns:
+            sample = df['index'].astype(str).head(5).tolist()
+            # Simple check for 4-digit years
+            if any(len(s) == 4 and s.isdigit() for s in sample):
+                df = df.rename(columns={'index': 'Year'})
+                st.sidebar.caption("ℹ️ Renamed 'index' to 'Year' for better detection.")
+            else:
+                st.sidebar.caption("ℹ️ Index reset to column for analysis.")
+        
         st.sidebar.success(f"Data transposed! '{index_column}' switched to columns.")
 
     st.sidebar.header("🛠️ Handle Missing Values")

@@ -921,3 +921,40 @@ def show_correlation_heatmap_interactive(df):
         
     else:
         st.info("Not enough numeric columns for correlation heatmap (minimum 2 required).")
+
+def visualizations_sidebar(df):
+    """
+    Main entry point for visualizations.
+    Renders a selector to choose between different visualization types.
+    """
+    st.markdown("### 📊 Choose Visualization")
+    viz_type = st.selectbox(
+        "Select Visualization Type",
+        [
+            "Interactive Dashboard (PyGWalker)",
+            "Basic Statistics",
+            "Bar Chart",
+            "Pie Chart", 
+            "Histogram",
+            "Scatter Plot",
+            "Correlation Heatmap"
+        ],
+        key="viz_selector_sidebar"
+    )
+    
+    st.divider()
+    
+    if viz_type == "Interactive Dashboard (PyGWalker)":
+        show_interactive_pygwalker(df)
+    elif viz_type == "Basic Statistics":
+        show_basic_statistics(df)
+    elif viz_type == "Bar Chart":
+        show_bar_chart_interactive(df)
+    elif viz_type == "Pie Chart":
+        show_pie_chart_interactive(df)
+    elif viz_type == "Histogram":
+        show_histogram_interactive(df)
+    elif viz_type == "Scatter Plot":
+        show_scatter_plot_interactive(df)
+    elif viz_type == "Correlation Heatmap":
+        show_correlation_heatmap_interactive(df)
