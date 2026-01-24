@@ -927,7 +927,7 @@ def visualizations_sidebar(df):
     Main entry point for visualizations.
     Renders a selector to choose between different visualization types.
     """
-    st.markdown("### 📊 Choose Visualization")
+    st.markdown("### 📊 Data Visualization")
     viz_type = st.selectbox(
         "Select Visualization Type",
         [
