@@ -7,8 +7,13 @@ scikit-learn
 statsmodels
 plotly
 pygwalker
-langchain-google-genai
-langchain-community
-langchain
+langchain==0.3.27
+langchain-community==0.3.31
+langchain-core==0.3.79
+langchain-google-genai==2.0.10
+langchain-huggingface
+sentence-transformers
+langchain-text-splitters==0.3.11
+langsmith==0.4.41
 faiss-cpu
 python-dotenv

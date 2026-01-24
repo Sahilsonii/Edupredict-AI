@@ -1,9 +1,20 @@
 # llm.py - LangChain & Gemini Integration
 
 import os
+import sys
 import streamlit as st
+
+# Windows compatibility fix: Mock pwd module before importing langchain_community
+if sys.platform == 'win32':
+    import types
+    pwd = types.ModuleType('pwd')
+    pwd.getpwnam = lambda x: None
+    pwd.getpwuid = lambda x: None
+    sys.modules['pwd'] = pwd
+
 from langchain_community.document_loaders.csv_loader import CSVLoader
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
 
@@ -19,10 +30,9 @@ def build_retriever(csv_path: str, api_key: str):
     loader = CSVLoader(file_path=csv_path)
     docs = loader.load()
     
-    # instantiate embeddings
-    embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001",
-        google_api_key=api_key
+    # instantiate embeddings (Hugging Face)
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
     
     # Build FAISS vectorstore from docs + embeddings
