@@ -101,9 +101,9 @@ def main():
         with tab1:
             st.info("✅ File uploaded successfully! Use the tabs above to process and analyze your data.")
             
-            # Data Preview - only visible in Tab 1
-            st.subheader("📖 Data Preview")
-            st.dataframe(df.head(20), use_container_width=True)
+            # Interactive Data Editor
+            st.subheader("📖 Interactive Data Editor")
+            df = st.data_editor(df, num_rows="dynamic", use_container_width=True, key="data_editor_main")
         
         # TAB 2: Data Processing
         with tab2:

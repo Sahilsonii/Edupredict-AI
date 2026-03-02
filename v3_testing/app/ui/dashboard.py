@@ -116,8 +116,9 @@ def render_dashboard(df, csv_analysis, api_key, csv_path):
             st.write("**Categorical Columns:**", csv_analysis['categorical_cols'])
 
     # Data Preview
-    st.subheader("📖 Data Preview")
-    st.dataframe(df.head(20), use_container_width=True)
+    st.subheader("📖 Interactive Data Editor")
+    # Update df to be the edited version so all downstream logic uses the new data
+    df = st.data_editor(df, num_rows="dynamic", use_container_width=True, key="data_editor")
 
     # ML Predictions
     with st.spinner("🔄 Processing CSV: Standardization -> Clustering -> Forecasting..."):

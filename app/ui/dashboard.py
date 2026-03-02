@@ -119,12 +119,6 @@ def render_dashboard(df, csv_analysis, api_key, csv_path):
     st.subheader("📖 Data Preview")
     st.dataframe(df.head(20), use_container_width=True)
 
-    # Visualization
-    st.subheader("🖼️ Data Visualization")
-    if st.checkbox("🔳 Show Visualizations", value=True):
-        from .visualizations import visualizations_sidebar
-        visualizations_sidebar(df)
-
     # ML Predictions
     with st.spinner("🔄 Processing CSV: Standardization -> Clustering -> Forecasting..."):
         # Note: We need a temporary filename or passing valid name if from uploaded_file
