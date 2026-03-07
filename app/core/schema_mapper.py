@@ -49,42 +49,50 @@ class SchemaMapper:
         Cached by Streamlit based on input arguments.
         """
         prompt = f"""
-        You are an Expert Academic Data Engineer.
-        
-        INTERNAL SCHEMA DEFINITION:
-        - metrics: {INTERNAL_SCHEMA['metrics']['description']} (e.g. {INTERNAL_SCHEMA['metrics']['examples']})
-        - dimensions: {INTERNAL_SCHEMA['dimensions']['description']} (e.g. {INTERNAL_SCHEMA['dimensions']['examples']})
-        - time: {INTERNAL_SCHEMA['time']['description']} (e.g. {INTERNAL_SCHEMA['time']['examples']})
-        
-        RAW CSV COLUMNS & SAMPLES:
-        {json.dumps(header_sample, indent=2)}
-        
-        TASK:
-        1. VALIDATE: Is this dataset related to the ACADEMIC/EDUCATION domain? (Students, Universities, Grades, Enrollment, Research, Schools, etc.)
-        2. IF NOT ACADEMIC: Return "is_academic": false.
-        3. IF ACADEMIC: Map raw columns to semantically standardized names.
-        
-        RETURN JSON ONLY:
-        {{
-            "is_academic": true/false,
-            "rejection_reason": "Reason if not academic, else null",
-            "mapping": {{
-                "raw_column_name_1": {{
-                    "role": "metric|dimension|time|ignore",
-                    "canonical_name": "standardized_snake_case_name",
-                    "description": "short description"
-                }},
-                ...
-            }}
+You are an Expert Academic Data Engineer.
+
+INTERNAL SCHEMA DEFINITION:
+- metrics: {INTERNAL_SCHEMA['metrics']['description']} (e.g. {INTERNAL_SCHEMA['metrics']['examples']})
+- dimensions: {INTERNAL_SCHEMA['dimensions']['description']} (e.g. {INTERNAL_SCHEMA['dimensions']['examples']})
+- time: {INTERNAL_SCHEMA['time']['description']} (e.g. {INTERNAL_SCHEMA['time']['examples']})
+
+RAW CSV COLUMNS & SAMPLES:
+{json.dumps(header_sample, indent=2)}
+
+TASK:
+1. VALIDATE: Is this dataset related to the ACADEMIC/EDUCATION domain? (Students, Universities, Grades, Enrollment, Research, Schools, etc.)
+2. IF NOT ACADEMIC: Return "is_academic": false.
+3. IF ACADEMIC: Map raw columns to semantically standardized names.
+
+RETURN ONLY VALID JSON (no markdown, no explanation):
+{{
+    "is_academic": true,
+    "rejection_reason": null,
+    "mapping": {{
+        "raw_column_name_1": {{
+            "role": "metric",
+            "canonical_name": "standardized_name",
+            "description": "short description"
         }}
-        """
+    }}
+}}
+"""
         
         try:
             response = _self.model.generate_content(prompt)
-            # Basic cleanup if model adds markdown backticks
-            text = response.text.replace("```json", "").replace("```", "").strip()
-            return json.loads(text)
+            text = response.text.strip()
+            # Remove markdown code blocks
+            text = text.replace('```json', '').replace('```', '').strip()
+            # Remove any leading/trailing whitespace or newlines
+            text = text.strip()
+            parsed = json.loads(text)
+            return parsed
+        except json.JSONDecodeError as e:
+            st.error(f"JSON parsing error: {str(e)}")
+            st.error(f"LLM Response: {response.text[:500]}")
+            return {"error": f"JSON parsing failed: {str(e)}"}
         except Exception as e:
+            st.error(f"LLM error: {str(e)}")
             return {"error": str(e)}
 
     def standardize(self, df: pd.DataFrame) -> Dict[str, Any]:

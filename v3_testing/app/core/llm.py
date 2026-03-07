@@ -44,7 +44,7 @@ def get_answer_from_llm(user_question, context, retriever, api_key):
     Get answer from Gemini LLM using logic from app.py
     """
     llm = ChatGoogleGenerativeAI(
-        model="gemma-3-27b-it",
+        model="gemini-1.5-flash",
         google_api_key=api_key,
         temperature=0.1,
         convert_system_message_to_human=True

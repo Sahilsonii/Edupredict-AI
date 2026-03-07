@@ -35,7 +35,7 @@ class SchemaMapper:
         if not api_key:
             raise ValueError("API Key is required for SchemaMapper")
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemma-3-27b-it')
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
         
     def _compute_file_hash(self, df: pd.DataFrame) -> str:
         """Create a hash of columns to cache results"""
