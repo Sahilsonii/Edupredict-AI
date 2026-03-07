@@ -13,6 +13,7 @@ st.set_page_config(page_title="EduPredict AI", page_icon="📊", layout="wide")
 from app.ui.sidebar import render_sidebar
 from app.ui.dashboard import process_csv_intelligent, show_prediction_interface
 from app.ui.visualizations import visualizations_sidebar
+from app.ui.planning_ui import render_planning_studio
 from app.core.data_handler import show_missing_summary, iterative_impute, advanced_iterative_impute
 from app.core.analyzer import analyze_csv_structure, create_universal_context
 from app.core.llm import build_retriever, get_answer_from_llm
@@ -95,7 +96,14 @@ def main():
             st.info(f"💡 **Suggestion:** {transpose_reason} Go to **🔧 Data Processing** tab to transpose.")
         
         # Create Tabs
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(["📁 Data Upload", "🔧 Data Processing", "📊 Visualization", "🤖 ML Predictions", "💬 AI Q&A"])
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+            "📁 Data Upload", 
+            "🔧 Data Processing", 
+            "📊 Visualization", 
+            "🤖 ML Predictions", 
+            "🎯 Planning Studio",
+            "💬 AI Q&A"
+        ])
         
         # TAB 1: Data Upload (already shown above)
         with tab1:
@@ -272,8 +280,26 @@ def main():
                 else:
                     st.info("Insufficient dimensions or metrics for drill-down.")
         
-        # TAB 5: AI Q&A
+        # TAB 5: Planning Studio
         with tab5:
+            with st.spinner("🔄 Processing: Standardization → Clustering → Forecasting..."):
+                df_processed, cluster_mappings, batch_results, prediction_summary, mapping_result = process_csv_intelligent(df, api_key)
+            
+            if mapping_result.get("error") == "Non-Academic Data Detected":
+                st.warning("⚠️ Planning Studio works best with academic data, but you can still use basic features.")
+                # Use fallback mapping
+                numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
+                time_cols = [col for col in df.columns if 'year' in col.lower() or 'date' in col.lower()]
+                mapping_result = {
+                    "metrics": numeric_cols,
+                    "dimensions": df.select_dtypes(include=['object']).columns.tolist(),
+                    "time_col": time_cols[0] if time_cols else None
+                }
+            
+            render_planning_studio(df, api_key, mapping_result)
+        
+        # TAB 6: AI Q&A
+        with tab6:
             st.subheader("💬 Ask Questions About Your Data")
             
             csv_analysis = analyze_csv_structure(df)

@@ -35,18 +35,16 @@ class SchemaMapper:
         if not api_key:
             raise ValueError("API Key is required for SchemaMapper")
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.model = genai.GenerativeModel('gemma-3-27b-it')
         
     def _compute_file_hash(self, df: pd.DataFrame) -> str:
         """Create a hash of columns to cache results"""
         col_str = ",".join(sorted(df.columns.astype(str)))
         return hashlib.md5(col_str.encode()).hexdigest()
 
-    @st.cache_data(show_spinner=False)
-    def get_standardized_map(_self, header_sample: Dict[str, List[Any]]) -> Dict[str, Any]:
+    def get_standardized_map(self, header_sample: Dict[str, List[Any]]) -> Dict[str, Any]:
         """
         Uses LLM to map raw columns to our internal schema.
-        Cached by Streamlit based on input arguments.
         """
         prompt = f"""
         You are an Expert Academic Data Engineer.
@@ -64,27 +62,40 @@ class SchemaMapper:
         2. IF NOT ACADEMIC: Return "is_academic": false.
         3. IF ACADEMIC: Map raw columns to semantically standardized names.
         
-        RETURN JSON ONLY:
+        RETURN ONLY VALID JSON (no markdown, no explanation):
         {{
-            "is_academic": true/false,
-            "rejection_reason": "Reason if not academic, else null",
+            "is_academic": true,
+            "rejection_reason": null,
             "mapping": {{
                 "raw_column_name_1": {{
-                    "role": "metric|dimension|time|ignore",
-                    "canonical_name": "standardized_snake_case_name",
+                    "role": "metric",
+                    "canonical_name": "standardized_name",
                     "description": "short description"
-                }},
-                ...
+                }}
             }}
         }}
         """
         
         try:
-            response = _self.model.generate_content(prompt)
-            # Basic cleanup if model adds markdown backticks
-            text = response.text.replace("```json", "").replace("```", "").strip()
-            return json.loads(text)
+            response = self.model.generate_content(prompt)
+            text = response.text.strip()
+            
+            # Remove markdown code blocks if present
+            if text.startswith("```"):
+                text = text.split("```")[1]
+                if text.startswith("json"):
+                    text = text[4:]
+                text = text.strip()
+            
+            # Parse JSON
+            result = json.loads(text)
+            return result
+            
+        except json.JSONDecodeError as e:
+            st.error(f"❌ LLM returned invalid JSON: {text[:200]}")
+            return {"error": f"JSON parsing failed: {str(e)}", "raw_response": text[:500]}
         except Exception as e:
+            st.error(f"❌ LLM error: {str(e)}")
             return {"error": str(e)}
 
     def standardize(self, df: pd.DataFrame) -> Dict[str, Any]:
@@ -95,8 +106,8 @@ class SchemaMapper:
         sample = {}
         for col in df.columns:
             sample[str(col)] = df[col].dropna().head(3).astype(str).tolist()
-            
-        # Get mapping (cached)
+        
+        # Get mapping
         llm_response = self.get_standardized_map(sample)
         
         if "error" in llm_response:
