@@ -300,33 +300,101 @@ def main():
         
         # TAB 6: AI Q&A
         with tab6:
-            st.subheader("💬 Ask Questions About Your Data")
+            # Initialize chat history
+            if "qa_history" not in st.session_state:
+                st.session_state.qa_history = []
             
-            csv_analysis = analyze_csv_structure(df)
-            example_questions = ["Summarize this dataset", "What are the main patterns?"]
-            if csv_analysis['numeric_cols']:
-                example_questions.append(f"What is the average {csv_analysis['numeric_cols'][0]}?")
+            # Build retriever (embeddings) once when Q&A tab loads — cached by @st.cache_resource
+            retriever = None
+            if api_key:
+                with st.spinner("🧠 Building knowledge base from your data..."):
+                    retriever = build_retriever(csv_path, api_key)
             
-            example = st.selectbox("💡 Smart Example Questions", example_questions)
-            user_question = st.text_input("Your question:", value=example)
+            # ── Header row: title + actions ──
+            header_col, spacer_col, clear_col, download_col = st.columns([3, 2, 1, 1])
+            with header_col:
+                st.subheader("💬 AI Q&A")
+            with clear_col:
+                if st.button("🗑️ Clear", key="clear_qa_history", help="Clear chat history"):
+                    st.session_state.qa_history = []
+                    st.rerun()
+            with download_col:
+                if st.session_state.qa_history:
+                    report_lines = []
+                    for i, entry in enumerate(st.session_state.qa_history, 1):
+                        report_lines.append(f"Q{i}: {entry['question']}")
+                        report_lines.append(f"A{i}: {entry['answer']}\n")
+                    st.download_button(
+                        "📥 Save",
+                        "\n".join(report_lines),
+                        "qa_history.txt",
+                        key="download_qa_history",
+                        help="Download full Q&A history"
+                    )
+            
+            # ── Status bar ──
+            if not api_key:
+                st.error("❌ API Key missing. Set GEMINI_API_KEY in .env")
+            elif not retriever:
+                st.warning("⏳ Knowledge base not ready. Please wait...")
+            else:
+                st.caption("✅ Knowledge base loaded — ask anything about your data!")
+            
+            st.divider()
+            
+            # ── Chat messages area ──
+            chat_container = st.container(height=450)
+            with chat_container:
+                if not st.session_state.qa_history:
+                    st.markdown(
+                        "<div style='text-align:center; padding:60px 20px; color:#888;'>"
+                        "<p style='font-size:48px; margin-bottom:10px;'>🎓</p>"
+                        "<p style='font-size:16px; font-weight:500;'>Ask me anything about your data</p>"
+                        "<p style='font-size:13px;'>Try: <em>\"Summarize this dataset\"</em> or <em>\"What are the enrollment trends?\"</em></p>"
+                        "</div>",
+                        unsafe_allow_html=True
+                    )
+                else:
+                    for entry in st.session_state.qa_history:
+                        with st.chat_message("user", avatar="👤"):
+                            st.markdown(entry["question"])
+                        with st.chat_message("assistant", avatar="🎓"):
+                            st.markdown(entry["answer"])
+            
+            # ── Chat input ──
+            user_question = st.chat_input(
+                "Ask a question about your data...",
+                key="qa_chat_input"
+            )
             
             if user_question:
                 if not api_key:
                     st.error("❌ API Key missing")
+                elif not retriever:
+                    st.error("❌ Knowledge base not ready yet")
                 else:
-                    with st.spinner("🤖 Analyzing..."):
-                        try:
-                            context = create_universal_context(df, user_question)
-                            retriever = build_retriever(csv_path, api_key)
-                            answer = get_answer_from_llm(user_question, context, retriever, api_key)
-                            
-                            st.markdown("### 📝 Analysis Result:")
-                            st.success(answer)
-                            
-                            report = f"Question: {user_question}\nAnswer: {answer}"
-                            st.download_button("📥 Download Report", report, "analysis.txt")
-                        except Exception as e:
-                            st.error(f"❌ Error: {str(e)}")
+                    # Show the new question in chat immediately
+                    with chat_container:
+                        with st.chat_message("user", avatar="👤"):
+                            st.markdown(user_question)
+                        
+                        with st.chat_message("assistant", avatar="🎓"):
+                            with st.spinner("Thinking..."):
+                                try:
+                                    context = create_universal_context(df, user_question)
+                                    answer = get_answer_from_llm(
+                                        user_question, context, retriever, api_key,
+                                        chat_history=st.session_state.qa_history
+                                    )
+                                    st.markdown(answer)
+                                    
+                                    # Store in history
+                                    st.session_state.qa_history.append({
+                                        "question": user_question,
+                                        "answer": answer
+                                    })
+                                except Exception as e:
+                                    st.error(f"❌ Error: {str(e)}")
     else:
         st.info("👆 Upload ANY CSV file to start.")
         st.markdown("""

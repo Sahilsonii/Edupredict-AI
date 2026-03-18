@@ -39,9 +39,10 @@ def build_retriever(csv_path: str, api_key: str):
     vectorstore = FAISS.from_documents(docs, embeddings)
     return vectorstore.as_retriever()
 
-def get_answer_from_llm(user_question, context, retriever, api_key):
+def get_answer_from_llm(user_question, context, retriever, api_key, chat_history=None):
     """
-    Get answer from Gemini LLM using logic from app.py
+    Get answer from Gemini LLM with optional chat history for conversational memory.
+    chat_history: list of dicts with 'question' and 'answer' keys.
     """
     llm = ChatGoogleGenerativeAI(
         model="gemma-3-27b-it",
@@ -58,6 +59,15 @@ def get_answer_from_llm(user_question, context, retriever, api_key):
         return_source_documents=False,
     )
 
+    # Format chat history into prompt context
+    history_text = ""
+    if chat_history:
+        history_lines = []
+        for entry in chat_history[-5:]:  # Keep last 5 for context window
+            history_lines.append(f"User: {entry['question']}")
+            history_lines.append(f"Assistant: {entry['answer']}")
+        history_text = "\n".join(history_lines)
+
     enhanced_question = f"""
 You are a Specialized Academic Data Analyst. 
 Your role is to strictly analyze educational and academic datasets (Schools, Universities, Student Performance, Enrollment, etc.).
@@ -65,7 +75,7 @@ Your role is to strictly analyze educational and academic datasets (Schools, Uni
 CONTEXT:
 {context}
 
-User Question: {user_question}
+{"CONVERSATION HISTORY:" + chr(10) + history_text + chr(10) if history_text else ""}User Question: {user_question}
 
 INSTRUCTIONS:
 1. **DOMAIN CHECK**:
@@ -76,6 +86,7 @@ INSTRUCTIONS:
    - Answer the question using ONLY the provided data context.
    - Use academic terminology (e.g., "enrollment trends", "student performance", "faculty ratios").
    - Be precise with numbers and trends.
+   - If the user's question references a previous conversation, use the CONVERSATION HISTORY to provide a coherent follow-up answer.
 
 3. **TONE**:
    - Professional, insightful, and focused on educational outcomes.
