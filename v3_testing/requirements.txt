@@ -17,3 +17,5 @@ langchain-text-splitters==0.3.11
 langsmith==0.4.41
 faiss-cpu
 python-dotenv
+huggingface_hub
+requests

@@ -17,6 +17,7 @@ from app.ui.planning_ui import render_planning_studio
 from app.core.data_handler import show_missing_summary, iterative_impute, advanced_iterative_impute
 from app.core.analyzer import analyze_csv_structure, create_universal_context
 from app.core.llm import build_retriever, get_answer_from_llm
+from app.core.translator import translate_text, LANG_LABELS
 from app.core.predictor import get_segmented_series, arima_forecast_students, aggregate_by_period_for_target
 import plotly.graph_objects as go
 
@@ -310,10 +311,19 @@ def main():
                 with st.spinner("🧠 Building knowledge base from your data..."):
                     retriever = build_retriever(csv_path, api_key)
             
-            # ── Header row: title + actions ──
-            header_col, spacer_col, clear_col, download_col = st.columns([3, 2, 1, 1])
+            # ── Header row: title + language + actions ──
+            header_col, lang_col, clear_col, download_col = st.columns([2, 2, 1, 1])
             with header_col:
                 st.subheader("💬 AI Q&A")
+            with lang_col:
+                selected_lang_label = st.selectbox(
+                    "🌐 Response Language",
+                    options=list(LANG_LABELS.keys()),
+                    index=0,
+                    key="qa_language",
+                    label_visibility="collapsed"
+                )
+                selected_language = LANG_LABELS[selected_lang_label]
             with clear_col:
                 if st.button("🗑️ Clear", key="clear_qa_history", help="Clear chat history"):
                     st.session_state.qa_history = []
@@ -338,7 +348,7 @@ def main():
             elif not retriever:
                 st.warning("⏳ Knowledge base not ready. Please wait...")
             else:
-                st.caption("✅ Knowledge base loaded — ask anything about your data!")
+                st.caption(f"✅ Knowledge base loaded — Responding in **{selected_language}**")
             
             st.divider()
             
@@ -382,10 +392,18 @@ def main():
                             with st.spinner("Thinking..."):
                                 try:
                                     context = create_universal_context(df, user_question)
-                                    answer = get_answer_from_llm(
+                                    answer_en = get_answer_from_llm(
                                         user_question, context, retriever, api_key,
                                         chat_history=st.session_state.qa_history
                                     )
+                                    
+                                    # Translate response to selected language
+                                    if selected_language != "English":
+                                        with st.spinner(f"Translating to {selected_language}..."):
+                                            answer = translate_text(answer_en, "English", selected_language)
+                                    else:
+                                        answer = answer_en
+                                    
                                     st.markdown(answer)
                                     
                                     # Store in history
